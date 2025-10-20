@@ -31,10 +31,10 @@ FROM base AS prod
 
 WORKDIR /var/www/html
 
-# копируем файлы проекта
+# Копируем весь код приложения внутрь контейнера
 COPY . .
 
-# устанавливаем зависимости
+# Устанавливаем зависимости (теперь composer.json уже на месте)
 RUN composer install --no-dev --optimize-autoloader --no-interaction --no-progress \
     && chown -R www-data:www-data /var/www/html \
     && chmod -R 755 storage bootstrap/cache
