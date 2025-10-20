@@ -1,7 +1,8 @@
 services:
   app:
     build:
-      context: ./docker/php
+      context: .
+      dockerfile: ./docker/php/Dockerfile
       target: prod
     container_name: app
     env_file:
