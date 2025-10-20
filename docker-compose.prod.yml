@@ -2,6 +2,7 @@ services:
   app:
     build:
       context: ./docker/php
+      target: prod
     container_name: app
     env_file:
       - .env

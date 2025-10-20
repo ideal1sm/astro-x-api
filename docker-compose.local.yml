@@ -2,6 +2,7 @@ services:
   app:
     build:
       context: ./docker/php
+      target: dev
       args:
         UID: ${UID:-1000}
         GID: ${GID:-1000}

@@ -1,12 +1,18 @@
 DC_LOCAL=docker compose -f docker-compose.local.yml
 DC_PROD=docker compose -f docker-compose.prod.yml
 
-.PHONY: up down restart build migrate cache composer artisan
+.PHONY: up down restart build migrate cache composer artisan fix-perms \
+        dev-up dev-build dev-down dev-restart dev-migrate dev-cache dev-composer-install dev-composer-update dev-artisan dev-fix-perms \
+        prod-up prod-build prod-down prod-restart prod-migrate prod-cache prod-artisan
 
-up:
+# ===============================
+# ========== DEV =================
+# ===============================
+
+dev-up:
 	${DC_LOCAL} up -d
 
-build:
+dev-build:
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} down
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} build --no-cache
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} up -d
@@ -15,27 +21,52 @@ build:
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} exec app mkdir -p storage/logs bootstrap/cache storage/framework/{cache,sessions,views,testing}
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} exec app composer install
 	UID=$(UID) GID=$(GID) ${DC_LOCAL} exec app php artisan key:generate --force
-	$(MAKE) migrate
+	$(MAKE) dev-migrate
 
-down:
+dev-down:
 	${DC_LOCAL} down
 
-restart: down up
+dev-restart: dev-down dev-up
 
-migrate:
+dev-migrate:
 	${DC_LOCAL} exec app php artisan migrate
 
-cache:
+dev-cache:
 	${DC_LOCAL} exec app php artisan optimize:clear
 
-composer-install:
+dev-composer-install:
 	${DC_LOCAL} exec app composer install
 
-composer-update:
+dev-composer-update:
 	${DC_LOCAL} exec app composer update
 
-artisan:
+dev-artisan:
 	${DC_LOCAL} exec app php artisan $(filter-out $@,$(MAKECMDGOALS))
 
-fix-perms:
+dev-fix-perms:
 	${DC_LOCAL} exec app sh -c "chmod -R 777 storage bootstrap/cache"
+
+
+# ===============================
+# ========== PROD ================
+# ===============================
+
+prod-build:
+	${DC_PROD} build --no-cache
+
+prod-up:
+	${DC_PROD} up -d
+
+prod-down:
+	${DC_PROD} down
+
+prod-restart: prod-down prod-up
+
+prod-migrate:
+	${DC_PROD} exec app php artisan migrate --force
+
+prod-cache:
+	${DC_PROD} exec app php artisan optimize:clear
+
+prod-artisan:
+	${DC_PROD} exec app php artisan $(filter-out $@,$(MAKECMDGOALS))
