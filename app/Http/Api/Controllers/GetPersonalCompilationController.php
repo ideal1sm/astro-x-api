@@ -71,7 +71,7 @@ class GetPersonalCompilationController
                 : 'Не удалось получить текст рекомендации.';
 
         } catch (\Throwable $e) {
-            return 'Не удалось получить текст рекомендации.';
+            throw new $e;
         }
     }
 }
