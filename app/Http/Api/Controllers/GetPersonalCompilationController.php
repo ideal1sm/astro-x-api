@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 
 class GetPersonalCompilationController
@@ -24,7 +25,15 @@ class GetPersonalCompilationController
 
         $astroText = $this->getAstroText($validated['name'], $birthDate);
 
-        $products = Product::where('zodiac_sign', $zodiac)->get();
+        $products = Product::where('zodiac_sign', $zodiac)->with('images')
+            ->get()
+            ->map(function (Product $product) {
+                $product->images->transform(function ($image) {
+                    $image->path = Storage::url($image->path);
+                    return $image;
+                });
+                return $product;
+            });
 
         return response()->json([
             'code' => 'SUCCESS',
@@ -70,7 +79,6 @@ class GetPersonalCompilationController
             return $response->successful()
                 ? ($response->json('content') ?? '')
                 : 'Не удалось получить текст рекомендации.';
-
         } catch (\Throwable $e) {
             Log::error('Ошибка при получении текст рекомендации', [
                 'error' => $e->getMessage(),

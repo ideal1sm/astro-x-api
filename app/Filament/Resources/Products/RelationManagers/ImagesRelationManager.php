@@ -41,7 +41,7 @@ class ImagesRelationManager extends RelationManager
     {
         return $table
             ->columns([
-                ImageColumn::make('path')->label('Изображение')->disk('local'),
+                ImageColumn::make('path')->label('Изображение')->disk(env('FILESYSTEM_DISK')),
                 TextColumn::make('created_at')->dateTime()->label('Добавлено'),
             ])
             ->headerActions([
