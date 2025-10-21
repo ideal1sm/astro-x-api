@@ -7,6 +7,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 
 class GetPersonalCompilationController
@@ -71,7 +72,12 @@ class GetPersonalCompilationController
                 : 'Не удалось получить текст рекомендации.';
 
         } catch (\Throwable $e) {
-            throw new $e;
+            Log::error('Ошибка при получении текст рекомендации', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return 'Не удалось получить текст рекомендации.';
         }
     }
 }
