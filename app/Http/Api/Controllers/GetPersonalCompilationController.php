@@ -64,7 +64,7 @@ class GetPersonalCompilationController
         try {
             $response = Http::get(env('ASTRO_X_TEXT_GENERATOR') . '/astro-text', [
                 'name' => $name,
-                'date' => $birthDate,
+                'date' => $birthDate->format('d.m.Y'),
             ]);
 
             return $response->successful()
