@@ -6,9 +6,11 @@ use App\Filament\Resources\Products\Pages\CreateProduct;
 use App\Filament\Resources\Products\Pages\EditProduct;
 use App\Filament\Resources\Products\Pages\ListProducts;
 use App\Models\Product;
+use App\Models\ProductCategory;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
@@ -39,6 +41,19 @@ class ProductResource extends Resource
             ->schema([
                 Section::make('Основная информация')
                     ->schema([
+                        TextInput::make('name')
+                            ->label('Наименование')
+                            ->placeholder('Кольцо 25 карат')
+                            ->required()
+                            ->maxLength(255),
+
+                        Select::make('category_id')
+                            ->label('Категория')
+                            ->relationship('category', 'name')
+                            ->searchable()
+                            ->options(ProductCategory::all()->pluck('name', 'id'))
+                            ->required(),
+
                         TextInput::make('brand')
                             ->label('Бренд')
                             ->required()
@@ -81,9 +96,13 @@ class ProductResource extends Resource
                             ->label('Производство')
                             ->placeholder('например: Россия'),
 
-                        TextInput::make('description')
+                        Textarea::make('description')
                             ->label('Описание')
                             ->placeholder('например: Точно вам подойдет!'),
+
+                        Textarea::make('short_description')
+                            ->label('Короткое описание')
+                            ->maxLength(1000),
 
                         Select::make('zodiac_sign')
                             ->label('Знак зодиака')
@@ -101,6 +120,7 @@ class ProductResource extends Resource
                                 'aquarius' => 'Водолей',
                                 'pisces' => 'Рыбы',
                             ])
+                            ->multiple()
                             ->searchable()
                     ])
                     ->columns(2),
