@@ -96,7 +96,7 @@ class ProductResource extends Resource
                             ->label('Короткое описание')
                             ->maxLength(1000),
 
-                        Select::make('zodiac_sign')
+                        Select::make('zodiac_signs')
                             ->label('Знак зодиака')
                             ->options([
                                 'aries' => 'Овен',

@@ -11,7 +11,7 @@ class GetProductController
 {
     public function __invoke(int $id): JsonResponse
     {
-        $product = Product::with('images')->find($id);
+        $product = Product::with(['images', 'category'])->find($id);
 
         if (!$product) {
             return response()->json([
