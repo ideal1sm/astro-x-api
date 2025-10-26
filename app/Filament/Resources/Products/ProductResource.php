@@ -64,16 +64,8 @@ class ProductResource extends Resource
                             ->numeric()
                             ->required(),
 
-                        Select::make('color')
-                            ->label('Цвет')
-                            ->options([
-                                'золотой' => 'Золотой',
-                                'серебряный' => 'Серебряный',
-                                'белый' => 'Белый',
-                                'черный' => 'Черный',
-                                'красный' => 'Красный',
-                            ])
-                            ->searchable(),
+                        TextInput::make('color')
+                            ->label('Цвет'),
 
                         TextInput::make('composition')
                             ->label('Состав')
