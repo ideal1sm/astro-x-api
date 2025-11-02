@@ -21,9 +21,8 @@ services:
     volumes:
       - ./:/var/www/html
       - ./docker/nginx/prod.conf:/etc/nginx/conf.d/default.conf
-      - ./storage/app/public:/var/www/html/storage/app/public
-      - ./docker/certbot/www:/var/www/certbot
-      - ./docker/certbot/conf:/etc/letsencrypt
+      - webroot:/var/www/certbot
+      - certs:/etc/letsencrypt
     depends_on:
       - app
     networks:
@@ -43,14 +42,16 @@ services:
     image: certbot/certbot
     container_name: certbot
     volumes:
-      - ./docker/certbot/www:/var/www/certbot
-      - ./docker/certbot/conf:/etc/letsencrypt
+      - webroot:/var/www/certbot
+      - certs:/etc/letsencrypt
     networks:
       - laravel
 
 volumes:
   db_data:
   storage_data:
+  webroot:
+  certs:
 
 networks:
   laravel:
