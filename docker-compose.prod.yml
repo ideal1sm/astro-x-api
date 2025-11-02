@@ -45,7 +45,6 @@ services:
     volumes:
       - ./docker/certbot/www:/var/www/certbot
       - ./docker/certbot/conf:/etc/letsencrypt
-    entrypoint: /bin/sh
     networks:
       - laravel
 
