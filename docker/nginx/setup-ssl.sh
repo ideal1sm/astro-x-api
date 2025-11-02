@@ -2,15 +2,24 @@
 
 DOMAIN="api.astro-x.ru"
 WEBROOT="/var/www/certbot"
+NGINX_CONF="./docker/nginx/prod.conf"
 
-# Получаем сертификат
-docker compose run --rm certbot certonly \
-  --webroot -w $WEBROOT \
-  -d $DOMAIN \
-  --email ardanovinbox@gmail.com --agree-tos --no-eff-email
+# Проверяем, есть ли сертификат
+if [ ! -f "./docker/certbot/conf/live/$DOMAIN/fullchain.pem" ]; then
+  echo "Получаем SSL сертификат для $DOMAIN..."
+  docker compose run --rm certbot certonly \
+    --webroot -w $WEBROOT \
+    -d $DOMAIN \
+    --email ardanovinbox@gmail.com --agree-tos --no-eff-email
+else
+  echo "Сертификат уже существует, пропускаем получение."
+fi
 
-# Создаём конфиг HTTPS для NGINX
-cat > ./docker/certbot/conf/live/$DOMAIN/ssl.conf <<EOL
+# Проверяем, есть ли HTTPS сервер в конфиге
+if ! grep -q "listen 443 ssl;" $NGINX_CONF; then
+  echo "Добавляем HTTPS сервер в конфиг NGINX..."
+  cat >> $NGINX_CONF <<EOL
+
 server {
     listen 443 ssl;
     server_name $DOMAIN;
@@ -33,6 +42,9 @@ server {
     }
 }
 EOL
+fi
 
-# Перезапускаем NGINX
-docker compose exec web nginx -s reload
+# Перезапуск NGINX
+echo "Перезапускаем NGINX..."
+docker compose exec web nginx -s reload || docker compose restart web
+echo "SSL настроен и HTTPS включён ✅"
