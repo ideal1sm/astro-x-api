@@ -39,6 +39,16 @@ services:
     networks:
       - laravel
 
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - ./docker/certbot/www:/var/www/certbot
+      - ./docker/certbot/conf:/etc/letsencrypt
+    entrypoint: /bin/sh
+    networks:
+      - laravel
+
 volumes:
   db_data:
   storage_data:
