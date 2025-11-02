@@ -8,7 +8,8 @@ services:
     ports:
       - "9000:9000"
     volumes:
-    - ./storage/app/public:/var/www/html/storage/app/public
+      - ./:/var/www/html
+      - ./storage/app/public:/var/www/html/storage/app/public
     env_file:
       - .env
     networks:
