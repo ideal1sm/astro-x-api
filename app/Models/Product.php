@@ -24,6 +24,7 @@ class Product extends Model
         'brand',
         'zodiac_signs',
         'category_id',
+        'inlay'
     ];
 
     protected $casts = [

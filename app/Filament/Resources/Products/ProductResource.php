@@ -16,6 +16,8 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
+use Filament\Tables\Columns\SelectColumn;
+use Filament\Tables\Columns\TagsColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
@@ -124,12 +126,30 @@ class ProductResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('id')->label('ID')->sortable(),
+                TextColumn::make('name')->label('Наименование')->sortable(),
                 TextColumn::make('brand')->label('Бренд')->searchable()->sortable(),
                 TextColumn::make('price')->label('Цена')->money('rub'),
                 TextColumn::make('color')->label('Цвет'),
                 TextColumn::make('composition')->label('Состав'),
                 TextColumn::make('inlay')->label('Вставка'),
-                TextColumn::make('zodiac_sign')->label('Знак зодиака'),
+                TextColumn::make('zodiac_signs')->label('Знаки зодиака')->getStateUsing(function ($record) {
+                    $map = [
+                        'aries' => 'Овен',
+                        'taurus' => 'Телец',
+                        'gemini' => 'Близнецы',
+                        'cancer' => 'Рак',
+                        'leo' => 'Лев',
+                        'virgo' => 'Дева',
+                        'libra' => 'Весы',
+                        'scorpio' => 'Скорпион',
+                        'sagittarius' => 'Стрелец',
+                        'capricorn' => 'Козерог',
+                        'aquarius' => 'Водолей',
+                        'pisces' => 'Рыбы',
+                    ];
+
+                    return implode(', ', array_map(fn($eng) => $map[$eng] ?? $eng, $record->zodiac_signs));
+                })
             ])
             ->filters([
                 Filter::make('has_inlay')
