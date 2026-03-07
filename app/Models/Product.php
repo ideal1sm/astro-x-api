@@ -17,7 +17,6 @@ class Product extends Model
         'color',
         'composition',
         'price',
-        'insert',
         'lock_type',
         'length',
         'production',

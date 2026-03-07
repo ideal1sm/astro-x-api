@@ -1,0 +1,2432 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Astro-X Jewelry Catalog API",
+    "version": "1.0.0",
+    "description": "REST API для сайта-каталога украшений Astro-X.\n\n**Stack:** Laravel 12, PHP 8.2+, Filament v4 (admin panel).\n\n**Auth:** Laravel Sanctum (Bearer-токены). Для активации auth-эндпоинтов необходимо добавить `laravel/sanctum` в проект.\n\n**Envelope:** Все ответы обёрнуты в единый конверт `{code, data, message, errors}`.\n\n**Пагинация:** page-based — параметры `page`, `limit`; в ответе `meta: {page, limit, total, pages}`.\n\n**Сортировка:** параметр `sort`, знак `-` перед полем означает DESC (пример: `-price`, `created_at`).\n\n**Формат ошибок:** `{code, data: null, message, errors}`, где `errors` — объект с детализацией по полям (validation) или пустой массив.\n\n---\n\n**Таблицы, найденные в проекте:**\n- `products` — товары\n- `product_categories` — категории\n- `product_images` — фотографии товаров\n- `users` — пользователи (базовые поля)\n- `password_reset_tokens` — токены сброса пароля\n- `sessions` — сессии (Laravel default)\n\n**Спроектировано с нуля (requires implementation):**\n- `user_addresses` — адреса доставки\n- `orders` — заказы\n- `order_items` — позиции заказа\n- поля `show_on_home`, `show_in_catalog` в `product_categories`\n- расширенные поля профиля (`first_name`, `last_name`, `phone`, `birth_date`) в `users`"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api/v1",
+      "description": "Local (php artisan serve)"
+    },
+    {
+      "url": "http://localhost:8080/api/v1",
+      "description": "Local Docker"
+    }
+  ],
+  "tags": [
+    {
+      "name": "system",
+      "description": "Данные главной страницы"
+    },
+    {
+      "name": "categories",
+      "description": "Категории товаров"
+    },
+    {
+      "name": "catalog",
+      "description": "Каталог с фильтрацией, сортировкой и пагинацией"
+    },
+    {
+      "name": "products",
+      "description": "Детальная карточка товара"
+    },
+    {
+      "name": "search",
+      "description": "Поиск по товарам и категориям"
+    },
+    {
+      "name": "auth",
+      "description": "Регистрация, вход, подтверждение почты, восстановление пароля. Требует laravel/sanctum."
+    },
+    {
+      "name": "users",
+      "description": "Профиль пользователя и адреса доставки. Требует bearerAuth."
+    },
+    {
+      "name": "orders",
+      "description": "Управление заказами. [requires implementation] Нужны таблицы orders, order_items, user_addresses."
+    },
+    {
+      "name": "legacy",
+      "description": "Существующие v1-эндпоинты (личная подборка по гороскопу)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "Sanctum",
+        "description": "Laravel Sanctum API-токен. Получить через POST /auth/login. Передавать как: Authorization: Bearer {token}"
+      }
+    },
+    "parameters": {
+      "PageParam": {
+        "name": "page",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "description": "Номер страницы"
+      },
+      "LimitParam": {
+        "name": "limit",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "description": "Количество элементов на странице"
+      },
+      "SortParam": {
+        "name": "sort",
+        "in": "query",
+        "required": false,
+        "schema": {
+          "type": "string",
+          "enum": ["price", "-price", "name", "-name", "created_at", "-created_at"]
+        },
+        "description": "Сортировка. Префикс `-` означает DESC. Пример: `-price` — цена по убыванию."
+      }
+    },
+    "schemas": {
+      "PaginationMeta": {
+        "type": "object",
+        "required": ["page", "limit", "total", "pages"],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 20
+          },
+          "total": {
+            "type": "integer",
+            "example": 157
+          },
+          "pages": {
+            "type": "integer",
+            "example": 8
+          }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "required": ["code", "data", "message", "errors"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "Машинный код ошибки",
+            "example": "NOT_FOUND"
+          },
+          "data": {
+            "type": "null"
+          },
+          "message": {
+            "type": "string",
+            "description": "Человекочитаемое описание ошибки",
+            "example": "Ресурс не найден"
+          },
+          "errors": {
+            "type": "array",
+            "items": {},
+            "description": "Пустой массив для не-валидационных ошибок"
+          }
+        }
+      },
+      "ValidationErrorEnvelope": {
+        "type": "object",
+        "required": ["code", "data", "message", "errors"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "example": "VALIDATION_ERROR"
+          },
+          "data": {
+            "type": "null"
+          },
+          "message": {
+            "type": "string",
+            "example": "Данные не прошли валидацию"
+          },
+          "errors": {
+            "type": "object",
+            "description": "Объект: ключ — имя поля, значение — массив сообщений об ошибках",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "example": {
+              "email": ["Поле email обязательно для заполнения."],
+              "password": ["Пароль должен содержать минимум 8 символов."]
+            }
+          }
+        }
+      },
+      "ProductImage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 6
+          },
+          "product_id": {
+            "type": "integer",
+            "example": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Полный URL изображения (Storage::url(path))",
+            "example": "http://localhost:8000/storage/products/01K8175NS6BDF6CS36E05P3Y5N.png"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductCategoryShort": {
+        "type": "object",
+        "description": "Сокращённое представление категории (в контексте товара)",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "name": {
+            "type": "string",
+            "example": "Кольца"
+          },
+          "slug": {
+            "type": "string",
+            "example": "koltsa"
+          }
+        }
+      },
+      "ProductCategory": {
+        "type": "object",
+        "description": "Полный объект категории. Поля show_on_home и show_in_catalog — proposed, требуют добавления миграции в product_categories.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 3
+          },
+          "name": {
+            "type": "string",
+            "example": "Кольца"
+          },
+          "slug": {
+            "type": "string",
+            "example": "koltsa"
+          },
+          "description": {
+            "type": ["string", "null"],
+            "example": "Обручальные, коктейльные и повседневные кольца"
+          },
+          "show_on_home": {
+            "type": "boolean",
+            "description": "[proposed] Показывать категорию на главной странице",
+            "example": true
+          },
+          "show_in_catalog": {
+            "type": "boolean",
+            "description": "[proposed] Показывать категорию в каталоге",
+            "example": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductShort": {
+        "type": "object",
+        "description": "Товар в списке (каталог, главная). Полные поля — в ProductFull.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Кольцо с фианитом серебро 925"
+          },
+          "short_description": {
+            "type": ["string", "null"],
+            "example": "Элегантное кольцо из серебра с вставкой из фианита"
+          },
+          "price": {
+            "type": "string",
+            "format": "decimal",
+            "description": "Цена в рублях (decimal 10,2)",
+            "example": "4990.00"
+          },
+          "color": {
+            "type": ["string", "null"],
+            "example": "серебряный"
+          },
+          "composition": {
+            "type": ["string", "null"],
+            "description": "Состав / материал",
+            "example": "серебро 925"
+          },
+          "inlay": {
+            "type": ["string", "null"],
+            "description": "Вставка (камень)",
+            "example": "фианит"
+          },
+          "brand": {
+            "type": ["string", "null"],
+            "example": "SOKOLOV"
+          },
+          "category": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ProductCategoryShort"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProductImage"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ProductFull": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProductShort"
+          },
+          {
+            "type": "object",
+            "description": "Полная карточка товара — все поля из БД",
+            "properties": {
+              "description": {
+                "type": ["string", "null"],
+                "example": "Изящное кольцо ручной работы из серебра 925 пробы..."
+              },
+              "lock_type": {
+                "type": ["string", "null"],
+                "description": "Вид замка",
+                "example": "английский замок"
+              },
+              "length": {
+                "type": ["string", "null"],
+                "description": "Длина изделия",
+                "example": "45"
+              },
+              "production": {
+                "type": ["string", "null"],
+                "description": "Страна / место производства",
+                "example": "Россия"
+              },
+              "zodiac_signs": {
+                "type": ["array", "null"],
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "aries",
+                    "taurus",
+                    "gemini",
+                    "cancer",
+                    "leo",
+                    "virgo",
+                    "libra",
+                    "scorpio",
+                    "sagittarius",
+                    "capricorn",
+                    "aquarius",
+                    "pisces"
+                  ]
+                },
+                "description": "Знаки зодиака (JSON-массив в БД)",
+                "example": ["libra", "scorpio"]
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      },
+      "HomeCategoryWithProducts": {
+        "type": "object",
+        "description": "Категория с вложенными товарами для главной страницы",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": ["string", "null"]
+          },
+          "products": {
+            "type": "array",
+            "description": "Ограниченный список товаров категории (newest / top N, задаётся параметром products_limit)",
+            "items": {
+              "$ref": "#/components/schemas/ProductShort"
+            }
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "description": "Профиль пользователя. Поля first_name, last_name, phone, birth_date — [proposed], требуют миграции.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 42
+          },
+          "name": {
+            "type": "string",
+            "example": "Иван Иванов"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ivan@example.com"
+          },
+          "email_verified_at": {
+            "type": ["string", "null"],
+            "format": "date-time",
+            "example": "2025-11-01T12:00:00.000000Z"
+          },
+          "first_name": {
+            "type": ["string", "null"],
+            "description": "[proposed] Имя",
+            "example": "Иван"
+          },
+          "last_name": {
+            "type": ["string", "null"],
+            "description": "[proposed] Фамилия",
+            "example": "Иванов"
+          },
+          "phone": {
+            "type": ["string", "null"],
+            "description": "[proposed] Телефон",
+            "example": "+79001234567"
+          },
+          "birth_date": {
+            "type": ["string", "null"],
+            "format": "date",
+            "description": "[proposed] Дата рождения",
+            "example": "1990-05-21"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "UserAddress": {
+        "type": "object",
+        "description": "[requires implementation] Адрес доставки пользователя. Нужна таблица user_addresses.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "user_id": {
+            "type": "integer",
+            "example": 42
+          },
+          "title": {
+            "type": ["string", "null"],
+            "description": "Произвольное название адреса",
+            "example": "Домашний"
+          },
+          "country": {
+            "type": "string",
+            "example": "Россия"
+          },
+          "city": {
+            "type": "string",
+            "example": "Москва"
+          },
+          "street": {
+            "type": "string",
+            "example": "ул. Арбат, д. 10, кв. 5"
+          },
+          "apartment": {
+            "type": ["string", "null"],
+            "example": "5"
+          },
+          "postal_code": {
+            "type": "string",
+            "example": "119002"
+          },
+          "is_default": {
+            "type": "boolean",
+            "example": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderItem": {
+        "type": "object",
+        "description": "[requires implementation] Позиция заказа",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "product_id": {
+            "type": "integer"
+          },
+          "product": {
+            "$ref": "#/components/schemas/ProductShort"
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "example": 2
+          },
+          "price": {
+            "type": "string",
+            "format": "decimal",
+            "description": "Цена на момент заказа",
+            "example": "4990.00"
+          },
+          "total": {
+            "type": "string",
+            "format": "decimal",
+            "description": "Сумма позиции (price × quantity)",
+            "example": "9980.00"
+          }
+        }
+      },
+      "OrderShort": {
+        "type": "object",
+        "description": "[requires implementation] Заказ в списке",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 101
+          },
+          "status": {
+            "type": "string",
+            "enum": ["new", "paid", "shipped", "delivered", "canceled"],
+            "example": "new"
+          },
+          "total": {
+            "type": "string",
+            "format": "decimal",
+            "description": "Итоговая сумма заказа",
+            "example": "14970.00"
+          },
+          "items_count": {
+            "type": "integer",
+            "example": 3
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "OrderFull": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/OrderShort"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/OrderItem"
+                }
+              },
+              "delivery_address": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UserAddress"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "notes": {
+                "type": ["string", "null"],
+                "description": "Комментарий к заказу",
+                "example": "Позвоните перед доставкой"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Не авторизован",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "example": {
+              "code": "UNAUTHENTICATED",
+              "data": null,
+              "message": "Требуется авторизация",
+              "errors": []
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Доступ запрещён",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "example": {
+              "code": "FORBIDDEN",
+              "data": null,
+              "message": "Недостаточно прав",
+              "errors": []
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Ресурс не найден",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErrorEnvelope"
+            },
+            "example": {
+              "code": "NOT_FOUND",
+              "data": null,
+              "message": "Ресурс не найден",
+              "errors": []
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Ошибка валидации",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationErrorEnvelope"
+            }
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/home": {
+      "get": {
+        "tags": ["system"],
+        "summary": "Данные главной страницы",
+        "description": "Возвращает список категорий с флагом show_on_home=true и вложенный список товаров для каждой. [proposed: поле show_on_home нужно добавить в product_categories]",
+        "operationId": "getHome",
+        "parameters": [
+          {
+            "name": "products_limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20,
+              "default": 8
+            },
+            "description": "Максимальное кол-во товаров на категорию"
+          },
+          {
+            "name": "products_sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["created_at", "-created_at", "price", "-price"],
+              "default": "-created_at"
+            },
+            "description": "Сортировка товаров внутри категорий"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/HomeCategoryWithProducts"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog/categories": {
+      "get": {
+        "tags": ["categories"],
+        "summary": "Список категорий каталога",
+        "description": "Возвращает категории с флагом show_in_catalog=true. [proposed: поле show_in_catalog нужно добавить в product_categories]",
+        "operationId": "listCategories",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["name", "-name", "created_at", "-created_at"],
+              "default": "name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список категорий с пагинацией",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductCategory"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog/products": {
+      "get": {
+        "tags": ["catalog"],
+        "summary": "Каталог товаров с фильтрацией",
+        "description": "Полный список товаров с фильтрами по всем полям из БД, пагинацией и сортировкой.",
+        "operationId": "getCatalog",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "$ref": "#/components/parameters/SortParam"
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Фильтр по ID категории (products.category_id)"
+          },
+          {
+            "name": "category_slug",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по slug категории (альтернатива category_id)"
+          },
+          {
+            "name": "brand",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по бренду (products.brand). Точное совпадение."
+          },
+          {
+            "name": "color",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по цвету (products.color). Точное совпадение."
+          },
+          {
+            "name": "composition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по составу/материалу (products.composition). LIKE-поиск."
+          },
+          {
+            "name": "inlay",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по вставке/камню (products.inlay). LIKE-поиск."
+          },
+          {
+            "name": "lock_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по виду замка (products.lock_type)"
+          },
+          {
+            "name": "production",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Фильтр по стране производства (products.production)"
+          },
+          {
+            "name": "price_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description": "Минимальная цена (включительно)"
+          },
+          {
+            "name": "price_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description": "Максимальная цена (включительно)"
+          },
+          {
+            "name": "zodiac_signs[]",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "aries", "taurus", "gemini", "cancer", "leo", "virgo",
+                  "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"
+                ]
+              }
+            },
+            "style": "form",
+            "explode": true,
+            "description": "Фильтр по знакам зодиака (products.zodiac_signs JSON). Пример: ?zodiac_signs[]=aries&zodiac_signs[]=leo"
+          },
+          {
+            "name": "has_images",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Только товары с фотографиями"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список товаров с пагинацией",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ProductShort"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/catalog/products/{id}": {
+      "get": {
+        "tags": ["products"],
+        "summary": "Детальная карточка товара по ID",
+        "description": "Возвращает полный объект товара с изображениями и категорией. Эндпоинт существует в текущем проекте.",
+        "operationId": "getProductById",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID товара"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Успешный ответ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/ProductFull"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/catalog/search": {
+      "get": {
+        "tags": ["search"],
+        "summary": "Поиск по товарам и категориям",
+        "description": "Полнотекстовый поиск. Ищет по полям: products.name, products.description, products.short_description, products.brand, products.inlay, products.composition; categories.name, categories.description.",
+        "operationId": "search",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 2
+            },
+            "description": "Строка поиска (минимум 2 символа)"
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["products", "categories", "all"],
+              "default": "all"
+            },
+            "description": "Область поиска"
+          },
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Результаты поиска",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProductShort"
+                          }
+                        },
+                        "categories": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProductCategoryShort"
+                          }
+                        }
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Регистрация пользователя",
+        "description": "Создаёт нового пользователя и возвращает Sanctum-токен. [requires implementation: laravel/sanctum]",
+        "operationId": "authRegister",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password", "password_confirmation"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Иван Иванов"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ivan@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "example": "secret12345"
+                  },
+                  "password_confirmation": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "secret12345"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Пользователь зарегистрирован",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        },
+                        "token": {
+                          "type": "string",
+                          "description": "Sanctum Bearer-токен",
+                          "example": "1|abcdef1234567890abcdef"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Регистрация прошла успешно. Проверьте почту для подтверждения."
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Вход в систему",
+        "description": "Аутентификация по email + password. Возвращает Sanctum Bearer-токен. [requires implementation: laravel/sanctum]",
+        "operationId": "authLogin",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ivan@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "secret12345"
+                  },
+                  "device_name": {
+                    "type": "string",
+                    "description": "Название устройства для Sanctum-токена",
+                    "example": "web-browser"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Успешный вход",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        },
+                        "token": {
+                          "type": "string",
+                          "example": "1|abcdef1234567890abcdef"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверные учётные данные",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "INVALID_CREDENTIALS",
+                  "data": null,
+                  "message": "Неверный email или пароль",
+                  "errors": []
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Выход из системы",
+        "description": "Отзывает текущий Sanctum-токен. [requires implementation: laravel/sanctum]",
+        "operationId": "authLogout",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Токен отозван",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Выход выполнен успешно"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Обновление токена",
+        "description": "[proposed] Выдаёт новый Sanctum-токен взамен текущего. Полезно при истечении срока действия. Требует настройки expiration в sanctum.php.",
+        "operationId": "authRefresh",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Новый токен выдан",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": {
+                          "type": "string",
+                          "example": "2|newtoken1234567890"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/email/confirm": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Подтверждение email",
+        "description": "Подтверждает email-адрес пользователя по одноразовому токену из письма. Устанавливает email_verified_at.",
+        "operationId": "authEmailConfirm",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token"],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Токен подтверждения из письма",
+                    "example": "abc123def456"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Email пользователя (для верификации токена)",
+                    "example": "ivan@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Email подтверждён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": {
+                          "$ref": "#/components/schemas/User"
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Email успешно подтверждён"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/auth/email/resend": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Повторная отправка письма подтверждения",
+        "description": "Повторно отправляет письмо подтверждения email. Требует авторизации.",
+        "operationId": "authEmailResend",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Письмо отправлено",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Письмо с подтверждением отправлено"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "description": "Слишком много запросов (rate limiting)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorEnvelope"
+                },
+                "example": {
+                  "code": "TOO_MANY_REQUESTS",
+                  "data": null,
+                  "message": "Повторная отправка доступна через 60 секунд",
+                  "errors": []
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password/forgot": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Запрос сброса пароля",
+        "description": "Отправляет письмо со ссылкой/токеном для сброса пароля. Использует таблицу password_reset_tokens.",
+        "operationId": "authPasswordForgot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email"],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ivan@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Письмо отправлено (ответ одинаковый независимо от существования email — защита от перебора)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Если email зарегистрирован, письмо с инструкциями отправлено"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/auth/password/reset": {
+      "post": {
+        "tags": ["auth"],
+        "summary": "Сброс пароля",
+        "description": "Устанавливает новый пароль по токену из письма. Удаляет запись из password_reset_tokens.",
+        "operationId": "authPasswordReset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["token", "email", "password", "password_confirmation"],
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "description": "Токен сброса из письма",
+                    "example": "xyz789token"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "ivan@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 8,
+                    "example": "newSecret12345"
+                  },
+                  "password_confirmation": {
+                    "type": "string",
+                    "format": "password",
+                    "example": "newSecret12345"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Пароль успешно изменён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Пароль успешно изменён"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Невалидный/истёкший токен или ошибка валидации",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": ["users"],
+        "summary": "Получить профиль текущего пользователя",
+        "operationId": "getMe",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Профиль пользователя",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "patch": {
+        "tags": ["users"],
+        "summary": "Обновить профиль",
+        "description": "Обновляет редактируемые поля профиля. Email изменить нельзя (только с повторным подтверждением, не включено в MVP).",
+        "operationId": "updateMe",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Иван Иванов"
+                  },
+                  "first_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "[proposed] Имя",
+                    "example": "Иван"
+                  },
+                  "last_name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "[proposed] Фамилия",
+                    "example": "Иванов"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "maxLength": 20,
+                    "description": "[proposed] Телефон",
+                    "example": "+79001234567"
+                  },
+                  "birth_date": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "[proposed] Дата рождения",
+                    "example": "1990-05-21"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Профиль обновлён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/User"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Профиль обновлён"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/me/addresses": {
+      "get": {
+        "tags": ["users"],
+        "summary": "Список адресов доставки",
+        "description": "[requires implementation] Возвращает все адреса пользователя. Нужна таблица user_addresses.",
+        "operationId": "listAddresses",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список адресов",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/UserAddress"
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["users"],
+        "summary": "Добавить адрес доставки",
+        "description": "[requires implementation]",
+        "operationId": "createAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["country", "city", "street", "postal_code"],
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "example": "Домашний"
+                  },
+                  "country": {
+                    "type": "string",
+                    "example": "Россия"
+                  },
+                  "city": {
+                    "type": "string",
+                    "example": "Москва"
+                  },
+                  "street": {
+                    "type": "string",
+                    "example": "ул. Арбат, д. 10"
+                  },
+                  "apartment": {
+                    "type": "string",
+                    "example": "5"
+                  },
+                  "postal_code": {
+                    "type": "string",
+                    "example": "119002"
+                  },
+                  "is_default": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Адрес добавлен",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserAddress"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Адрес добавлен"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/me/addresses/{id}": {
+      "patch": {
+        "tags": ["users"],
+        "summary": "Обновить адрес доставки",
+        "description": "[requires implementation]",
+        "operationId": "updateAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "street": {
+                    "type": "string"
+                  },
+                  "apartment": {
+                    "type": "string"
+                  },
+                  "postal_code": {
+                    "type": "string"
+                  },
+                  "is_default": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Адрес обновлён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/UserAddress"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": ["users"],
+        "summary": "Удалить адрес доставки",
+        "description": "[requires implementation]",
+        "operationId": "deleteAddress",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Адрес удалён",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "null"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Адрес удалён"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["orders"],
+        "summary": "Список заказов пользователя",
+        "description": "[requires implementation] Нужна таблица orders.",
+        "operationId": "listOrders",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/PageParam"
+          },
+          {
+            "$ref": "#/components/parameters/LimitParam"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["new", "paid", "shipped", "delivered", "canceled"]
+            },
+            "description": "Фильтр по статусу заказа"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["created_at", "-created_at"],
+              "default": "-created_at"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Список заказов с пагинацией",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/OrderShort"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/PaginationMeta"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      },
+      "post": {
+        "tags": ["orders"],
+        "summary": "Создать заказ",
+        "description": "[requires implementation] Создаёт заказ из переданного списка позиций. Проверяет наличие товаров и актуальность цен.",
+        "operationId": "createOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["items"],
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "object",
+                      "required": ["product_id", "quantity"],
+                      "properties": {
+                        "product_id": {
+                          "type": "integer",
+                          "example": 1
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "example": 2
+                        }
+                      }
+                    }
+                  },
+                  "delivery_address_id": {
+                    "type": "integer",
+                    "description": "ID сохранённого адреса пользователя",
+                    "example": 1
+                  },
+                  "delivery_address": {
+                    "description": "Адрес доставки inline (если delivery_address_id не указан)",
+                    "type": "object",
+                    "properties": {
+                      "country": {
+                        "type": "string"
+                      },
+                      "city": {
+                        "type": "string"
+                      },
+                      "street": {
+                        "type": "string"
+                      },
+                      "apartment": {
+                        "type": "string"
+                      },
+                      "postal_code": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 1000,
+                    "description": "Комментарий к заказу",
+                    "example": "Позвоните перед доставкой"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Заказ создан",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderFull"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Заказ успешно создан"
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "description": "Ошибка валидации или бизнес-логики",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationErrorEnvelope"
+                },
+                "examples": {
+                  "validation": {
+                    "summary": "Ошибка валидации полей",
+                    "value": {
+                      "code": "VALIDATION_ERROR",
+                      "data": null,
+                      "message": "Данные не прошли валидацию",
+                      "errors": {
+                        "items.0.product_id": ["Товар не найден"]
+                      }
+                    }
+                  },
+                  "out_of_stock": {
+                    "summary": "Товар недоступен",
+                    "value": {
+                      "code": "PRODUCT_UNAVAILABLE",
+                      "data": null,
+                      "message": "Один или несколько товаров недоступны",
+                      "errors": {
+                        "items": ["Товар #1 недоступен для заказа"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}": {
+      "get": {
+        "tags": ["orders"],
+        "summary": "Детальный заказ",
+        "description": "[requires implementation] Возвращает полный объект заказа с позициями.",
+        "operationId": "getOrder",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "description": "ID заказа"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Детальный заказ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/OrderFull"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      }
+    },
+    "/personal-compilation": {
+      "post": {
+        "tags": ["legacy"],
+        "summary": "Персональная подборка украшений по гороскопу",
+        "description": "Существующий эндпоинт. Возвращает астро-текст и список товаров по знаку зодиака, рассчитанному из даты рождения.",
+        "operationId": "getPersonalCompilation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "birth_date"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "example": "Иван"
+                  },
+                  "birth_date": {
+                    "type": "string",
+                    "description": "Дата рождения в формате YYYY-MM-DD или DD.MM.YYYY",
+                    "example": "1990-11-30"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Персональная подборка",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "SUCCESS"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "text": {
+                          "type": "string",
+                          "description": "Астро-текст от внешнего сервиса"
+                        },
+                        "products": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ProductFull"
+                          }
+                        }
+                      }
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": ""
+                    },
+                    "errors": {
+                      "type": "array",
+                      "items": {}
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    }
+  }
+}

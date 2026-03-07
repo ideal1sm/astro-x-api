@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1
-
 # ============ Base Stage ============
 FROM php:8.3-fpm AS base
 

@@ -3,7 +3,8 @@ DC_PROD=docker compose -f docker-compose.prod.yml
 
 .PHONY: up down restart build migrate cache composer artisan fix-perms \
         dev-up dev-build dev-down dev-restart dev-migrate dev-cache dev-composer-install dev-composer-update dev-artisan dev-fix-perms \
-        prod-up prod-build prod-down prod-restart prod-migrate prod-cache prod-artisan
+        prod-up prod-build prod-down prod-restart prod-migrate prod-cache prod-artisan \
+        test test-unit test-feature test-filter test-coverage
 
 # ===============================
 # ========== DEV =================
@@ -70,3 +71,34 @@ prod-cache:
 
 prod-artisan:
 	${DC_PROD} exec app php artisan $(filter-out $@,$(MAKECMDGOALS))
+
+
+# ===============================
+# ========== TESTS ===============
+# ===============================
+# Все тесты запускаются внутри dev-контейнера (${DC_LOCAL} exec app).
+# Убедитесь, что контейнер запущен: make dev-up
+
+## Запустить все тесты
+test:
+	${DC_LOCAL} exec app php artisan test --no-coverage
+
+## Запустить только Unit-тесты (tests/Unit)
+test-unit:
+	${DC_LOCAL} exec app php artisan test --testsuite=Unit --no-coverage
+
+## Запустить только Feature-тесты (tests/Feature)
+test-feature:
+	${DC_LOCAL} exec app php artisan test --testsuite=Feature --no-coverage
+
+## Запустить тест по имени класса или метода.
+## Использование: make test-filter name=CatalogProductsTest
+test-filter:
+	${DC_LOCAL} exec app php artisan test --filter $(name) --no-coverage
+
+## Запустить тесты с отчётом о покрытии.
+## Требует Xdebug или PCOV внутри контейнера.
+## На текущий момент драйверы покрытия не установлены — команда завершится с ошибкой.
+## Для включения: добавьте xdebug или pcov в Dockerfile и пересоберите образ (make dev-build).
+test-coverage:
+	${DC_LOCAL} exec app php artisan test --coverage
