@@ -30,6 +30,30 @@ server {
     root /var/www/html/public;
     index index.php;
 
+    # CORS headers for static files (images, etc.) served from /storage/
+    location /storage/ {
+        set \$cors_origin "";
+        if (\$http_origin ~* "^https://(www\.)?astro-x\.ru\$") {
+            set \$cors_origin \$http_origin;
+        }
+
+        add_header Access-Control-Allow-Origin \$cors_origin always;
+        add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS" always;
+        add_header Access-Control-Allow-Headers "Origin, Accept, Content-Type" always;
+        add_header Vary "Origin" always;
+
+        if (\$request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin \$cors_origin;
+            add_header Access-Control-Allow-Methods "GET, HEAD, OPTIONS";
+            add_header Access-Control-Allow-Headers "Origin, Accept, Content-Type";
+            add_header Vary "Origin";
+            add_header Content-Length 0;
+            return 204;
+        }
+
+        try_files \$uri =404;
+    }
+
     location / {
         try_files \$uri \$uri/ /index.php?\$query_string;
     }
