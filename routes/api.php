@@ -10,6 +10,8 @@ use App\Http\Api\Controllers\CatalogSearchController;
 use App\Http\Api\Controllers\GetPersonalCompilationController;
 use App\Http\Api\Controllers\GetProductController;
 use App\Http\Api\Controllers\HomeController;
+use App\Http\Api\Controllers\ProfileController;
+use App\Http\Api\Controllers\UserAddressController;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function () {
@@ -29,6 +31,17 @@ Route::prefix('v1')->group(function () {
             Route::post('/logout',        [AuthController::class, 'logout']);
             Route::post('/email/resend',  [AuthController::class, 'resendEmail']);
         });
+    });
+
+    // ── Profile + Addresses (protected) ──────────────────────────────────────
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::get('/me',    [ProfileController::class, 'show']);
+        Route::patch('/me',  [ProfileController::class, 'update']);
+
+        Route::get('/me/addresses',          [UserAddressController::class, 'index']);
+        Route::post('/me/addresses',         [UserAddressController::class, 'store']);
+        Route::patch('/me/addresses/{id}',   [UserAddressController::class, 'update']);
+        Route::delete('/me/addresses/{id}',  [UserAddressController::class, 'destroy']);
     });
 
     // ── Orders (protected) ────────────────────────────────────────────────────
