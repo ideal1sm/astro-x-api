@@ -15,6 +15,13 @@ class ProductCategory extends Model
         'name',
         'slug',
         'description',
+        'show_on_home',
+        'show_in_catalog',
+    ];
+
+    protected $casts = [
+        'show_on_home'    => 'boolean',
+        'show_in_catalog' => 'boolean',
     ];
 
     protected static function booted(): void

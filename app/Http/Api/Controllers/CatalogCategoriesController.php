@@ -7,7 +7,6 @@ use App\Http\Api\Requests\CatalogCategoriesRequest;
 use App\Http\Api\Resources\ProductCategoryResource;
 use App\Models\ProductCategory;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Facades\Schema;
 
 class CatalogCategoriesController
 {
@@ -26,15 +25,7 @@ class CatalogCategoriesController
         $page  = (int) $request->input('page', 1);
         $limit = (int) $request->input('limit', 20);
 
-        $query = ProductCategory::query();
-
-        // TODO: убрать проверку Schema::hasColumn после применения миграции.
-        //       Нужно добавить: $table->boolean('show_in_catalog')->default(true);
-        //       в таблицу product_categories (см. OpenAPI spec, поле [proposed]).
-        //       После этого фильтр будет применяться всегда.
-        if (Schema::hasColumn('product_categories', 'show_in_catalog')) {
-            $query->where('show_in_catalog', true);
-        }
+        $query = ProductCategory::query()->where('show_in_catalog', true);
 
         [$column, $direction] = $this->parseSort($request->input('sort'));
         $query->orderBy($column, $direction);
