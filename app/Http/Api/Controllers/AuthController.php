@@ -171,7 +171,7 @@ class AuthController extends Controller
             },
         );
 
-        if ($status !== Password::PasswordStatus::PASSWORD_RESET) {
+        if ($status !== Password::PASSWORD_RESET) {
             return $this->error(
                 code: 'INVALID_TOKEN',
                 message: 'Токен недействителен, истёк или email не найден',

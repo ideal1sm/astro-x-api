@@ -52,10 +52,12 @@ class UserAddressController extends Controller
             // Первый адрес → всегда дефолтный
             if ($isFirst) {
                 $data['is_default'] = true;
+            } else {
+                $data['is_default'] = (bool) ($data['is_default'] ?? false);
             }
 
-            // Если явно задан is_default=true → сбросить у остальных
-            if (!empty($data['is_default'])) {
+            // Если is_default=true → сбросить у остальных
+            if ($data['is_default']) {
                 $user->addresses()->update(['is_default' => false]);
             }
 

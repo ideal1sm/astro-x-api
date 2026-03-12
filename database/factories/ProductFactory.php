@@ -28,7 +28,7 @@ class ProductFactory extends Factory
             'production'        => fake()->optional()->randomElement(['Россия', 'Италия', 'Китай']),
             'brand'             => fake()->optional()->randomElement(['SOKOLOV', 'Pandora', 'TODOS', 'Excalibur']),
             'zodiac_signs'      => [],
-            'description'       => fake()->optional()->paragraph(),
+            'description'       => fake()->optional()->sentence(),
         ];
     }
 
