@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Filament\Resources\ProductCategories;
+namespace App\Filament\Resources\ShopCategories;
 
-use App\Filament\Resources\ProductCategories\Pages\CreateProductCategory;
-use App\Filament\Resources\ProductCategories\Pages\EditProductCategory;
-use App\Filament\Resources\ProductCategories\Pages\ListProductCategories;
-use App\Models\ProductCategory;
+use App\Filament\Resources\ShopCategories\Pages\CreateShopCategory;
+use App\Filament\Resources\ShopCategories\Pages\EditShopCategory;
+use App\Filament\Resources\ShopCategories\Pages\ListShopCategories;
+use App\Models\ShopCategory;
 use BackedEnum;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -20,21 +20,21 @@ use Filament\Tables\Filters\Filter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
-class ProductCategoryResource extends Resource
+class ShopCategoryResource extends Resource
 {
-    protected static ?string $model = ProductCategory::class;
+    protected static ?string $model = ShopCategory::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::Tag;
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Astro-x';
+    protected static string|null|\UnitEnum $navigationGroup = 'Мёд';
 
     protected static ?int $navigationSort = 10;
 
     protected static ?string $navigationLabel = 'Категории';
 
-    protected static ?string $pluralLabel = 'Категории Astro-x';
+    protected static ?string $pluralLabel = 'Категории Мёд';
 
-    protected static ?string $modelLabel = 'Категория Astro-x';
+    protected static ?string $modelLabel = 'Категория Мёд';
 
     public static function form(Schema $schema): Schema
     {
@@ -60,17 +60,14 @@ class ProductCategoryResource extends Resource
                 ->columns(2),
 
             Section::make('Отображение')
-                ->description('Управляйте, где именно показывается категория на сайте')
                 ->schema([
                     Toggle::make('show_on_home')
                         ->label('Выводить на главной')
-                        ->helperText('Категория появится в блоке на главной странице')
                         ->onColor('success')
                         ->default(false),
 
                     Toggle::make('show_in_catalog')
                         ->label('Выводить в каталоге')
-                        ->helperText('Категория появится в списке категорий каталога')
                         ->onColor('success')
                         ->default(false),
                 ])
@@ -130,17 +127,12 @@ class ProductCategoryResource extends Resource
             ]);
     }
 
-    public static function getRelations(): array
-    {
-        return [];
-    }
-
     public static function getPages(): array
     {
         return [
-            'index'  => ListProductCategories::route('/'),
-            'create' => CreateProductCategory::route('/create'),
-            'edit'   => EditProductCategory::route('/{record}/edit'),
+            'index'  => ListShopCategories::route('/'),
+            'create' => CreateShopCategory::route('/create'),
+            'edit'   => EditShopCategory::route('/{record}/edit'),
         ];
     }
 }

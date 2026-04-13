@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('shop_products', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('category_id')->nullable()->constrained('shop_categories')->nullOnDelete();
+            $table->string('name');
+            $table->text('short_description')->nullable();
+            $table->json('zodiac_signs')->nullable();
+            $table->string('color')->nullable()->comment('Цвет изделия');
+            $table->string('composition')->nullable()->comment('Состав / материал');
+            $table->decimal('price', 10, 2)->default(0)->comment('Цена');
+            $table->string('inlay')->nullable()->comment('Вставка (камень)');
+            $table->string('lock_type')->nullable()->comment('Вид замка');
+            $table->string('length')->nullable()->comment('Длина');
+            $table->string('production')->nullable()->comment('Производство');
+            $table->string('brand')->nullable()->comment('Бренд');
+            $table->string('description')->nullable()->comment('Описание');
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('shop_products');
+    }
+};

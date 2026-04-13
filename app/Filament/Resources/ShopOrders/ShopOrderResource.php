@@ -1,12 +1,12 @@
 <?php
 
-namespace App\Filament\Resources\Orders;
+namespace App\Filament\Resources\ShopOrders;
 
 use App\Enums\OrderStatus;
-use App\Filament\Resources\Orders\Pages\EditOrder;
-use App\Filament\Resources\Orders\Pages\ListOrders;
-use App\Filament\Resources\Orders\RelationManagers\ItemsRelationManager;
-use App\Models\Order;
+use App\Filament\Resources\ShopOrders\Pages\EditShopOrder;
+use App\Filament\Resources\ShopOrders\Pages\ListShopOrders;
+use App\Filament\Resources\ShopOrders\RelationManagers\ItemsRelationManager;
+use App\Models\ShopOrder;
 use BackedEnum;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -20,23 +20,22 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 
-class OrderResource extends Resource
+class ShopOrderResource extends Resource
 {
-    protected static ?string $model = Order::class;
+    protected static ?string $model = ShopOrder::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedShoppingBag;
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Astro-x';
+    protected static string|null|\UnitEnum $navigationGroup = 'Мёд';
 
-    protected static ?int $navigationSort = 90;
+    protected static ?int $navigationSort = 30;
 
     protected static ?string $navigationLabel = 'Заказы';
 
-    protected static ?string $modelLabel = 'Заказ Astro-x';
+    protected static ?string $modelLabel = 'Заказ Мёд';
 
-    protected static ?string $pluralModelLabel = 'Заказы Astro-x';
+    protected static ?string $pluralModelLabel = 'Заказы Мёд';
 
-    /** Метки статусов заказа для форм и таблиц. */
     private static function statusOptions(): array
     {
         return collect(OrderStatus::cases())
@@ -133,8 +132,8 @@ class OrderResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index' => ListOrders::route('/'),
-            'edit'  => EditOrder::route('/{record}/edit'),
+            'index' => ListShopOrders::route('/'),
+            'edit'  => EditShopOrder::route('/{record}/edit'),
         ];
     }
 }

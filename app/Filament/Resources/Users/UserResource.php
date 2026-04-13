@@ -5,16 +5,15 @@ namespace App\Filament\Resources\Users;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
 use App\Filament\Resources\Users\RelationManagers\AddressesRelationManager;
-use App\Filament\Resources\Users\RelationManagers\OrdersRelationManager;
+use App\Filament\Resources\Users\RelationManagers\ShopOrdersRelationManager;
 use App\Models\User;
 use BackedEnum;
-use Filament\Actions\Action;
+use Filament\Actions\Action as TableAction;
 use Filament\Forms\Components\TextInput;
 use Filament\Resources\Resource;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Actions\Action as TableAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -27,13 +26,15 @@ class UserResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedUsers;
 
-    protected static string|null|\UnitEnum $navigationGroup = 'Магазин';
+    protected static string|null|\UnitEnum $navigationGroup = 'Общее';
+
+    protected static ?int $navigationSort = 10;
 
     protected static ?string $navigationLabel = 'Пользователи';
 
     protected static ?string $modelLabel = 'Пользователь';
 
-    protected static ?string $pluralModelLabel = 'Пользователи';
+    protected static ?string $pluralModelLabel = 'Пользователи (общие аккаунты)';
 
     public static function form(Schema $schema): Schema
     {
@@ -116,9 +117,9 @@ class UserResource extends Resource
                         : 'Не подтверждён'
                     ),
 
-                TextColumn::make('orders_count')
-                    ->label('Заказов')
-                    ->counts('orders')
+                TextColumn::make('shop_orders_count')
+                    ->label('Заказов Мёд')
+                    ->counts('shopOrders')
                     ->sortable(),
 
                 TextColumn::make('created_at')
@@ -137,10 +138,10 @@ class UserResource extends Resource
                     ->toggle()
                     ->query(fn (Builder $query) => $query->whereNull('email_verified_at')),
 
-                Filter::make('has_orders')
-                    ->label('Есть заказы')
+                Filter::make('has_shop_orders')
+                    ->label('Есть заказы Мёд')
                     ->toggle()
-                    ->query(fn (Builder $query) => $query->has('orders')),
+                    ->query(fn (Builder $query) => $query->has('shopOrders')),
             ])
             ->recordActions([
                 // Административное подтверждение email.
@@ -160,7 +161,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            OrdersRelationManager::class,
+            ShopOrdersRelationManager::class,
             AddressesRelationManager::class,
         ];
     }
