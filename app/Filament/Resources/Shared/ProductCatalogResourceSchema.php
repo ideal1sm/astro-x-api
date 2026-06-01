@@ -2,21 +2,23 @@
 
 namespace App\Filament\Resources\Shared;
 
+use App\Enums\ProductAvailabilityStatus;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Components\Section;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
 
 class ProductCatalogResourceSchema
 {
     /**
      * @param class-string<\Illuminate\Database\Eloquent\Model> $categoryModel
      */
-    public static function form(string $categoryModel): array
+    public static function form(string $categoryModel, bool $withStock = false): array
     {
-        return [
+        $schema = [
             Section::make('Основная информация')
                 ->schema([
                     TextInput::make('name')
@@ -82,11 +84,33 @@ class ProductCatalogResourceSchema
                 ])
                 ->columns(2),
         ];
+
+        if ($withStock) {
+            $schema[] = Section::make('Наличие')
+                ->schema([
+                    Select::make('availability_status')
+                        ->label('Статус наличия')
+                        ->options(self::availabilityOptions())
+                        ->required()
+                        ->native(false)
+                        ->default(ProductAvailabilityStatus::InStock->value),
+
+                    TextInput::make('stock_quantity')
+                        ->label('Остаток')
+                        ->numeric()
+                        ->minValue(0)
+                        ->nullable()
+                        ->helperText('Оставьте пустым, если количественный учёт не используется. Для "В наличии" значение 0 будет автоматически интерпретировано как "Нет в наличии".'),
+                ])
+                ->columns(2);
+        }
+
+        return $schema;
     }
 
-    public static function tableColumns(): array
+    public static function tableColumns(bool $withStock = false): array
     {
-        return [
+        $columns = [
             TextColumn::make('id')->label('ID')->sortable(),
             TextColumn::make('name')->label('Наименование')->sortable(),
             TextColumn::make('brand')->label('Бренд')->searchable()->sortable(),
@@ -103,15 +127,45 @@ class ProductCatalogResourceSchema
                 ));
             }),
         ];
+
+        if ($withStock) {
+            $columns[] = TextColumn::make('availability_status')
+                ->label('Наличие')
+                ->badge()
+                ->formatStateUsing(fn (ProductAvailabilityStatus|string $state) => $state instanceof ProductAvailabilityStatus
+                    ? $state->label()
+                    : (self::availabilityOptions()[$state] ?? $state)
+                )
+                ->color(fn (ProductAvailabilityStatus|string $state) => match ($state instanceof ProductAvailabilityStatus ? $state->value : $state) {
+                    ProductAvailabilityStatus::InStock->value => 'success',
+                    ProductAvailabilityStatus::OutOfStock->value => 'danger',
+                    ProductAvailabilityStatus::Preorder->value => 'warning',
+                    default => 'gray',
+                });
+
+            $columns[] = TextColumn::make('stock_quantity')
+                ->label('Остаток')
+                ->placeholder('Без учёта');
+        }
+
+        return $columns;
     }
 
-    public static function tableFilters(): array
+    public static function tableFilters(bool $withStock = false): array
     {
-        return [
+        $filters = [
             Filter::make('has_inlay')
                 ->label('С вставкой')
                 ->query(fn ($query) => $query->whereNotNull('inlay')),
         ];
+
+        if ($withStock) {
+            $filters[] = SelectFilter::make('availability_status')
+                ->label('Наличие')
+                ->options(self::availabilityOptions());
+        }
+
+        return $filters;
     }
 
     private static function zodiacOptions(): array
@@ -130,5 +184,12 @@ class ProductCatalogResourceSchema
             'aquarius' => 'Водолей',
             'pisces' => 'Рыбы',
         ];
+    }
+
+    private static function availabilityOptions(): array
+    {
+        return collect(ProductAvailabilityStatus::cases())
+            ->mapWithKeys(fn (ProductAvailabilityStatus $status) => [$status->value => $status->label()])
+            ->all();
     }
 }

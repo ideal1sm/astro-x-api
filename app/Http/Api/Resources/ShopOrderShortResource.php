@@ -12,6 +12,8 @@ class ShopOrderShortResource extends JsonResource
         return [
             'id'          => $this->id,
             'status'      => $this->status->value,
+            'payment_method' => $this->payment_method?->value,
+            'payment_status' => $this->payment_status?->value,
             'total'       => number_format((float) $this->total, 2, '.', ''),
             'items_count' => $this->items_count ?? 0,
             'created_at'  => $this->created_at,

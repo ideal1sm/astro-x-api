@@ -806,10 +806,37 @@
                         ],
                         "example": "Натуральный липовый мед"
                     },
+                    "color": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "example": "янтарный"
+                    },
                     "price": {
                         "type": "string",
                         "format": "decimal",
                         "example": "890.00"
+                    },
+                    "availability_status": {
+                        "type": "string",
+                        "enum": [
+                            "in_stock",
+                            "out_of_stock",
+                            "preorder"
+                        ],
+                        "example": "in_stock"
+                    },
+                    "stock_quantity": {
+                        "type": [
+                            "integer",
+                            "null"
+                        ],
+                        "example": 7
+                    },
+                    "is_purchasable": {
+                        "type": "boolean",
+                        "example": true
                     },
                     "brand": {
                         "type": [
@@ -972,9 +999,35 @@
                         ],
                         "example": "created"
                     },
+                    "payment_method": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "yookassa",
+                            null
+                        ],
+                        "example": "yookassa"
+                    },
+                    "payment_status": {
+                        "type": [
+                            "string",
+                            "null"
+                        ],
+                        "enum": [
+                            "pending",
+                            "waiting_for_capture",
+                            "succeeded",
+                            "canceled",
+                            null
+                        ],
+                        "example": "pending"
+                    },
                     "total": {
                         "type": "string",
                         "format": "decimal",
+                        "description": "Итоговая сумма заказа с учётом доставки",
                         "example": "1780.00"
                     },
                     "items_count": {
@@ -995,21 +1048,121 @@
                     {
                         "type": "object",
                         "properties": {
+                            "payment_amount": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "decimal",
+                                "example": "1780.00"
+                            },
+                            "payment_confirmation_url": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "uri",
+                                "example": "https://pay.example.test/pay/pay_order_1"
+                            },
+                            "payment_id": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "example": "pay_order_1"
+                            },
+                            "payment_paid_at": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "format": "date-time"
+                            },
+                            "items_total": {
+                                "type": "string",
+                                "format": "decimal",
+                                "example": "1330.00"
+                            },
+                            "delivery_method": {
+                                "type": "string",
+                                "example": "pickup_point"
+                            },
+                            "delivery_price": {
+                                "type": "string",
+                                "format": "decimal",
+                                "example": "450.00"
+                            },
+                            "delivery_payload": {
+                                "type": "object",
+                                "additionalProperties": true,
+                                "example": {
+                                    "type": "pickup_point",
+                                    "provider": "manual",
+                                    "pickup_point": "ПВЗ на Ленина, 5"
+                                }
+                            },
+                            "recipient_name": {
+                                "type": "string",
+                                "example": "Пётр Петров"
+                            },
+                            "recipient_phone": {
+                                "type": "string",
+                                "example": "+7 999 555 44 34"
+                            },
+                            "delivery_city": {
+                                "type": "string",
+                                "example": "Казань"
+                            },
+                            "delivery_address": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "example": null
+                            },
+                            "delivery_pickup_point": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "example": "ПВЗ на Ленина, 5"
+                            },
+                            "delivery_comment": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "example": "После 18:00"
+                            },
+                            "customer_name": {
+                                "type": "string",
+                                "example": "Иван Иванов"
+                            },
+                            "customer_phone": {
+                                "type": "string",
+                                "example": "+7 (999) 123-45-67"
+                            },
+                            "customer_email": {
+                                "type": "string",
+                                "format": "email",
+                                "example": "ivan@example.com"
+                            },
+                            "personal_data_consent": {
+                                "type": "boolean",
+                                "example": true
+                            },
+                            "payment_failure_reason": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ],
+                                "example": null
+                            },
                             "items": {
                                 "type": "array",
                                 "items": {
                                     "$ref": "#/components/schemas/ShopOrderItem"
                                 }
-                            },
-                            "delivery_address": {
-                                "oneOf": [
-                                    {
-                                        "$ref": "#/components/schemas/UserAddress"
-                                    },
-                                    {
-                                        "type": "null"
-                                    }
-                                ]
                             },
                             "notes": {
                                 "type": [
@@ -3426,14 +3579,9 @@
                 "tags": [
                     "shop-orders"
                 ],
-                "summary": "Мёд: создать заказ",
-                "description": "Создаёт заказ Мёд. Позиции используют shop_product_id и таблицу shop_products.",
+                "summary": "Мёд: создать заказ (гость или авторизованный пользователь)",
+                "description": "Создаёт заказ Мёд и инициирует платёж в ЮKassa. Endpoint доступен без авторизации. Если передан токен Sanctum, заказ привязывается к существующему пользователю. Данные доставки и стоимость доставки frontend передаёт готовыми, backend их только валидирует и сохраняет. Backend не интегрируется со СДЭК и не рассчитывает доставку. Позиции используют shop_product_id и таблицу shop_products. Для товаров со статусом in_stock и количественным учётом backend проверяет остаток и уменьшает его при успешном создании заказа. В ответе возвращается payment_confirmation_url для редиректа пользователя на страницу оплаты ЮKassa. После успешного создания заказа backend отправляет внутренние уведомления менеджерам по email и Telegram, если они настроены.",
                 "operationId": "createShopOrder",
-                "security": [
-                    {
-                        "bearerAuth": []
-                    }
-                ],
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -3441,9 +3589,106 @@
                             "schema": {
                                 "type": "object",
                                 "required": [
+                                    "customer_name",
+                                    "customer_phone",
+                                    "customer_email",
+                                    "personal_data_consent",
+                                    "payment_method",
+                                    "payment_return_url",
+                                    "delivery_method",
+                                    "delivery_price",
+                                    "delivery_payload",
+                                    "recipient_name",
+                                    "recipient_phone",
+                                    "delivery_city",
                                     "items"
                                 ],
                                 "properties": {
+                                    "customer_name": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "Иван Иванов"
+                                    },
+                                    "customer_phone": {
+                                        "type": "string",
+                                        "maxLength": 32,
+                                        "example": "+7 (999) 123-45-67"
+                                    },
+                                    "customer_email": {
+                                        "type": "string",
+                                        "format": "email",
+                                        "maxLength": 255,
+                                        "example": "ivan@example.com"
+                                    },
+                                    "personal_data_consent": {
+                                        "type": "boolean",
+                                        "description": "Обязательное согласие на обработку персональных данных.",
+                                        "example": true
+                                    },
+                                    "payment_method": {
+                                        "type": "string",
+                                        "enum": [
+                                            "yookassa"
+                                        ],
+                                        "example": "yookassa"
+                                    },
+                                    "payment_return_url": {
+                                        "type": "string",
+                                        "format": "uri",
+                                        "description": "URL storefront, куда ЮKassa вернёт пользователя после попытки оплаты.",
+                                        "example": "https://shop.example.test/orders/success"
+                                    },
+                                    "delivery_method": {
+                                        "type": "string",
+                                        "maxLength": 100,
+                                        "example": "pickup_point"
+                                    },
+                                    "delivery_price": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "example": 450
+                                    },
+                                    "delivery_payload": {
+                                        "type": "object",
+                                        "additionalProperties": true,
+                                        "example": {
+                                            "type": "pickup_point",
+                                            "provider": "manual",
+                                            "pickup_point": "ПВЗ на Ленина, 5"
+                                        }
+                                    },
+                                    "recipient_name": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "Пётр Петров"
+                                    },
+                                    "recipient_phone": {
+                                        "type": "string",
+                                        "maxLength": 32,
+                                        "example": "+7 999 555 44 34"
+                                    },
+                                    "delivery_city": {
+                                        "type": "string",
+                                        "maxLength": 255,
+                                        "example": "Казань"
+                                    },
+                                    "delivery_address": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "description": "Адрес курьерской доставки. Обязателен, если не передан delivery_pickup_point.",
+                                        "example": "Москва, ул. Пушкина, д. 10, кв. 5"
+                                    },
+                                    "delivery_pickup_point": {
+                                        "type": "string",
+                                        "maxLength": 1000,
+                                        "description": "Пункт выдачи. Обязателен, если не передан delivery_address.",
+                                        "example": "ПВЗ на Ленина, 5"
+                                    },
+                                    "delivery_comment": {
+                                        "type": "string",
+                                        "maxLength": 2000,
+                                        "example": "После 18:00"
+                                    },
                                     "items": {
                                         "type": "array",
                                         "minItems": 1,
@@ -3465,10 +3710,6 @@
                                                 }
                                             }
                                         }
-                                    },
-                                    "delivery_address_id": {
-                                        "type": "integer",
-                                        "example": 1
                                     },
                                     "notes": {
                                         "type": "string",
@@ -3508,8 +3749,133 @@
                             }
                         }
                     },
-                    "401": {
-                        "$ref": "#/components/responses/Unauthorized"
+                    "422": {
+                        "$ref": "#/components/responses/ValidationError"
+                    },
+                    "502": {
+                        "description": "Ошибка создания платежа у провайдера",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "string",
+                                            "example": "PAYMENT_PROVIDER_ERROR"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Не удалось создать платёж в ЮKassa."
+                                        },
+                                        "errors": {
+                                            "type": "object",
+                                            "additionalProperties": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/shop/payments/yookassa/webhook": {
+            "post": {
+                "tags": [
+                    "shop-orders"
+                ],
+                "summary": "Мёд: webhook ЮKassa",
+                "description": "Публичный webhook endpoint для обновления статуса оплаты заказа Мёд. После подтверждения платежа backend обновляет payment_status и переводит заказ в in_progress. При canceled backend отменяет заказ и возвращает зарезервированный остаток.",
+                "operationId": "handleYookassaWebhook",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": [
+                                    "event",
+                                    "object"
+                                ],
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "example": "notification"
+                                    },
+                                    "event": {
+                                        "type": "string",
+                                        "enum": [
+                                            "payment.waiting_for_capture",
+                                            "payment.succeeded",
+                                            "payment.canceled"
+                                        ],
+                                        "example": "payment.succeeded"
+                                    },
+                                    "object": {
+                                        "type": "object",
+                                        "required": [
+                                            "id",
+                                            "status"
+                                        ],
+                                        "properties": {
+                                            "id": {
+                                                "type": "string",
+                                                "example": "pay_order_1"
+                                            },
+                                            "status": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "pending",
+                                                    "waiting_for_capture",
+                                                    "succeeded",
+                                                    "canceled"
+                                                ],
+                                                "example": "succeeded"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Webhook обработан",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "properties": {
+                                        "code": {
+                                            "type": "string",
+                                            "example": "SUCCESS"
+                                        },
+                                        "data": {
+                                            "type": "null",
+                                            "example": null
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Webhook ЮKassa обработан"
+                                        },
+                                        "errors": {
+                                            "type": "array",
+                                            "items": []
+                                        }
+                                    }
+                                }
+                            }
+                        }
                     },
                     "422": {
                         "$ref": "#/components/responses/ValidationError"

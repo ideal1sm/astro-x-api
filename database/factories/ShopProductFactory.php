@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\ProductAvailabilityStatus;
 use App\Models\ShopCategory;
 use App\Models\ShopProduct;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -28,6 +29,8 @@ class ShopProductFactory extends Factory
             'length'            => fake()->optional()->randomElement(['250 г', '500 г', '1 кг']),
             'production'        => fake()->optional()->randomElement(['Россия', 'Алтай', 'Башкортостан']),
             'zodiac_signs'      => [],
+            'availability_status' => ProductAvailabilityStatus::InStock,
+            'stock_quantity'    => fake()->optional()->numberBetween(1, 25),
             'description'       => fake()->optional()->sentence(),
         ];
     }

@@ -3,6 +3,8 @@
 namespace App\Http\Api\Controllers;
 
 use App\Enums\OrderStatus;
+use App\Events\ShopOrderCreated;
+use App\Exceptions\PaymentGatewayException;
 use App\Http\Api\Concerns\ApiResponse;
 use App\Http\Api\Requests\CreateShopOrderRequest;
 use App\Http\Api\Requests\ListOrdersRequest;
@@ -11,16 +13,21 @@ use App\Http\Api\Resources\ShopOrderShortResource;
 use App\Models\ShopOrder;
 use App\Models\User;
 use App\Services\CreateShopOrderService;
+use App\Services\Payments\ShopOrderPaymentService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response;
 
 class ShopOrderController extends Controller
 {
     use ApiResponse;
 
-    public function __construct(private readonly CreateShopOrderService $createOrderService) {}
+    public function __construct(
+        private readonly CreateShopOrderService $createOrderService,
+        private readonly ShopOrderPaymentService $shopOrderPaymentService,
+    ) {}
 
     public function index(ListOrdersRequest $request): JsonResponse
     {
@@ -53,9 +60,34 @@ class ShopOrderController extends Controller
 
     public function store(CreateShopOrderRequest $request): JsonResponse
     {
-        /** @var User $user */
-        $user = Auth::user();
-        $order = $this->createOrderService->execute($user, $request->validated());
+        /** @var User|null $user */
+        $user = $request->user('sanctum');
+
+        try {
+            $order = $this->createOrderService->execute($user, $request->validated());
+        } catch (ValidationException $exception) {
+            return $this->error(
+                code: 'VALIDATION_ERROR',
+                message: 'Данные не прошли валидацию',
+                errors: $exception->errors(),
+                status: Response::HTTP_UNPROCESSABLE_ENTITY,
+            );
+        }
+
+        try {
+            $order = $this->shopOrderPaymentService->initiatePayment($order, $request->validated());
+        } catch (PaymentGatewayException $exception) {
+            $this->shopOrderPaymentService->rollbackUnpaidOrder($order);
+
+            return $this->error(
+                code: 'PAYMENT_PROVIDER_ERROR',
+                message: 'Не удалось создать платёж в ЮKassa.',
+                errors: ['payment' => [$exception->getMessage()]],
+                status: Response::HTTP_BAD_GATEWAY,
+            );
+        }
+
+        ShopOrderCreated::dispatch($order);
 
         return $this->success(
             data: new ShopOrderFullResource($order),
@@ -66,7 +98,7 @@ class ShopOrderController extends Controller
 
     public function show(int $id): JsonResponse
     {
-        $order = ShopOrder::with(['items.product.images', 'items.product.category', 'deliveryAddress'])->find($id);
+        $order = ShopOrder::with(['items.product.images', 'items.product.category'])->find($id);
 
         if ($order === null) {
             return $this->error(

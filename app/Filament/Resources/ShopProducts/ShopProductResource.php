@@ -36,14 +36,14 @@ class ShopProductResource extends Resource
     public static function form(Schema $schema): Schema
     {
         return $schema
-            ->schema(ProductCatalogResourceSchema::form(ShopCategory::class));
+            ->schema(ProductCatalogResourceSchema::form(ShopCategory::class, true));
     }
 
     public static function table(Table $table): Table
     {
         return $table
-            ->columns(ProductCatalogResourceSchema::tableColumns())
-            ->filters(ProductCatalogResourceSchema::tableFilters());
+            ->columns(ProductCatalogResourceSchema::tableColumns(true))
+            ->filters(ProductCatalogResourceSchema::tableFilters(true));
     }
 
     public static function getRelations(): array

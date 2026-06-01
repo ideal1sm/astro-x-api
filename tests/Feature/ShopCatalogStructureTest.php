@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\ProductAvailabilityStatus;
 use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ShopCategory;
@@ -23,6 +24,8 @@ class ShopCatalogStructureTest extends TestCase
             'category_id' => $category->id,
             'name'        => 'Липовый мед',
             'price'       => '890.00',
+            'availability_status' => ProductAvailabilityStatus::InStock,
+            'stock_quantity' => 7,
         ]);
 
         ShopProductImage::factory()->count(2)->create(['shop_product_id' => $product->id]);
@@ -32,6 +35,8 @@ class ShopCatalogStructureTest extends TestCase
         $this->assertTrue($product->category->is($category));
         $this->assertCount(2, $product->images);
         $this->assertSame('890.00', (string) $product->price);
+        $this->assertSame(ProductAvailabilityStatus::InStock, $product->availability_status);
+        $this->assertSame(7, $product->stock_quantity);
     }
 
     public function test_shop_catalog_is_separate_from_astro_catalog(): void
